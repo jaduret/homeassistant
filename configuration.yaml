@@ -1,0 +1,467 @@
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+logger:
+  default: info
+
+modbus:
+  - name: KS5-3000-1
+    type: tcp
+    host: 192.168.1.200
+    port: 502
+    delay: 50
+    message_wait_milliseconds: 500
+    timeout: 5
+    sensors:
+      - name: "KS1 Day Power Peak (W)"
+        unique_id: ks1_day_power_peak_w
+        unit_of_measurement: W
+        slave: 1
+        address: 3098
+        input_type: input
+        data_type: uint32
+      - name: "KS1 Daily Energy Yield (kWh)"
+        unique_id: ks1_daily_energy_yield_kwh
+        unit_of_measurement: kWh        
+        slave: 1
+        address: 3042
+        input_type: input
+        data_type: uint16
+      - name: "KS1 Week Generation (kWh)"
+        unique_id: ks1_week_generation_kwh
+        unit_of_measurement: kWh
+        slave: 1
+        address: 3100
+        input_type: input
+        data_type: uint32
+      - name: "KS1 Month Generation (kWh)"
+        unique_id: ks1_month_generation_kwh
+        unit_of_measurement: kWh
+        slave: 1
+        address: 3102
+        input_type: input
+        data_type: uint32
+      - name: "KS1 Last 50 Days Generation (kWh)"
+        unique_id: ks1_last_50_days_generation_kwh
+        unit_of_measurement: kWh
+        slave: 1
+        address: 3104
+        input_type: input
+        data_type: uint32
+      - name: "KS1 Daily Grid Sales (dWh)"
+        unique_id: ks1_daily_grid_sales_dwh
+        unit_of_measurement: dWh
+        scale: 0.1
+        precision: 2
+        slave: 1
+        address: 3210
+        count: 2
+        input_type: input
+        data_type: custom
+        structure: ">I"
+      - name: "KS1 Total Grid Sales (dWh)"
+        unique_id: ks1_total_grid_sales_dwh
+        unit_of_measurement: dWh
+        scale: 0.1
+        precision: 2
+        slave: 1
+        address: 3212
+        count: 2
+        input_type: input
+        data_type: custom
+        structure: ">I"
+        
+  - name: KS5-3000-2
+    type: tcp
+    host: 192.168.1.201
+    port: 502
+    delay: 50
+    message_wait_milliseconds: 500
+    timeout: 5
+    sensors:
+      - name: "KS2 Day Power Peak (W)"
+        unique_id: ks2_day_power_peak_w
+        unit_of_measurement: W
+        slave: 1
+        address: 3098
+        input_type: input
+        data_type: uint32
+      - name: "KS2 Daily Energy Yield (kWh)"
+        unique_id: ks2_daily_energy_yield_kwh
+        unit_of_measurement: kWh
+        slave: 1
+        address: 3042
+        input_type: input
+        data_type: uint16
+      - name: "KS2 Week Generation (kWh)"
+        unique_id: ks2_week_generation_kwh
+        unit_of_measurement: kWh
+        slave: 1
+        address: 3100
+        input_type: input
+        data_type: uint32
+      - name: "KS2 Month Generation (kWh)"
+        unique_id: ks2_month_generation_kwh
+        unit_of_measurement: kWh
+        slave: 1
+        address: 3102
+        input_type: input
+        data_type: uint32
+      - name: "KS2 Last 50 Days Generation (kWh)"
+        unique_id: ks2_last_50_days_generation_kwh
+        unit_of_measurement: kWh
+        slave: 1
+        address: 3104
+        input_type: input
+        data_type: uint32
+      - name: "KS2 Daily Grid Sales (dWh)"
+        unique_id: ks2_daily_grid_sales_dwh
+        unit_of_measurement: dWh
+        scale: 0.1
+        precision: 2
+        slave: 1
+        address: 3210
+        count: 2
+        input_type: input
+        data_type: custom
+        structure: ">I"
+      - name: "KS2 Total Grid Sales (dWh)"
+        unique_id: ks2_total_grid_sales_dwh
+        unit_of_measurement: dWh
+        scale: 0.1
+        precision: 2
+        slave: 1
+        address: 3212
+        count: 2
+        input_type: input
+        data_type: custom
+        structure: ">I"
+
+template:
+  - sensor:
+      # --- Peak power: W → kW (per inverter) ---
+      - name: "KS1 Day Peak Power (kW)"
+        unique_id: ks1_day_power_peak_kw
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: "kW"
+        state: "{{ (states('sensor.ks1_day_power_peak_w') | float(0)) / 1000 }}"
+        availability: "{{ states('sensor.ks1_day_power_peak_w') not in ['unknown','unavailable'] }}"
+
+      - name: "KS2 Day Peak Power (kW)"
+        unique_id: ks2_day_power_peak_kw
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: "kW"
+        state: "{{ (states('sensor.ks2_day_power_peak_w') | float(0)) / 1000 }}"
+        availability: "{{ states('sensor.ks2_day_power_peak_w') not in ['unknown','unavailable'] }}"
+
+      # --- Per-inverter daily grid sales (dWh -> kWh), resets daily ---
+      - name: "KS1 Daily Grid Sales (kWh)"
+        unique_id: ks1_daily_grid_sales_kwh
+        device_class: energy
+        state_class: total
+        unit_of_measurement: "kWh"
+        availability: >
+          {{ has_value('sensor.ks1_daily_grid_sales_dwh') }}
+        state: >
+          {% set raw = states('sensor.ks1_daily_grid_sales_dwh') %}
+          {% if is_number(raw) %}
+            {{ (raw | float) / 10 }}
+          {% else %}
+            {{ none }}
+          {% endif %}
+
+      - name: "KS2 Daily Grid Sales (kWh)"
+        unique_id: ks2_daily_grid_sales_kwh
+        device_class: energy
+        state_class: total
+        unit_of_measurement: "kWh"
+        availability: >
+          {{ has_value('sensor.ks2_daily_grid_sales_dwh') }}
+        state: >
+          {% set raw = states('sensor.ks2_daily_grid_sales_dwh') %}
+          {% if is_number(raw) %}
+            {{ (raw | float) / 10 }}
+          {% else %}
+            {{ none }}
+          {% endif %}
+
+      - name: "KS1 Total Grid Sales (kWh)"
+        unique_id: ks1_total_grid_sales_kwh
+        device_class: energy
+        state_class: total_increasing
+        unit_of_measurement: "kWh"
+        state: "{{ (states('sensor.ks1_total_grid_sales_dwh') | float(0)) / 10 }}"
+        availability: "{{ states('sensor.ks1_total_grid_sales_dwh') not in ['unknown','unavailable'] }}"
+
+      - name: "KS2 Total Grid Sales (kWh)"
+        unique_id: ks2_total_grid_sales_kwh
+        device_class: energy
+        state_class: total_increasing
+        unit_of_measurement: "kWh"
+        state: "{{ (states('sensor.ks2_total_grid_sales_dwh') | float(0)) / 10 }}"
+        availability: "{{ states('sensor.ks2_total_grid_sales_dwh') not in ['unknown','unavailable'] }}"
+
+      # --- Combined "today" production/export (sum of daily cumulative counters) ---
+      - name: "Solar Daily Production (kWh)"
+        unique_id: solar_daily_production_kwh
+        device_class: energy
+        state_class: total
+        unit_of_measurement: "kWh"
+        availability: >
+          {{ has_value('sensor.ks1_daily_energy_yield_kwh') and has_value('sensor.ks2_daily_energy_yield_kwh') }}
+        state: >
+          {% set a = states('sensor.ks1_daily_energy_yield_kwh') %}
+          {% set b = states('sensor.ks2_daily_energy_yield_kwh') %}
+          {% if is_number(a) and is_number(b) %}
+            {{ a|float + b|float }}
+          {% else %}
+            {{ none }}
+          {% endif %}
+
+      - name: "Solar Week Production (kWh)"
+        unique_id: solar_week_production_kwh
+        device_class: energy
+        state_class: total
+        unit_of_measurement: "kWh"
+        availability: >
+          {{ has_value('sensor.ks1_daily_energy_yield_kwh') and has_value('sensor.ks2_daily_energy_yield_kwh') }}
+        state: >
+          {{ (states('sensor.ks1_week_generation_kwh')|float(0))
+           + (states('sensor.ks2_week_generation_kwh')|float(0)) }}
+
+      - name: "Solar Month Production (kWh)"
+        unique_id: solar_month_production_kwh
+        device_class: energy
+        state_class: total
+        unit_of_measurement: "kWh"
+        state: >
+          {{ (states('sensor.ks1_month_generation_kwh')|float(0))
+           + (states('sensor.ks2_month_generation_kwh')|float(0)) }}
+
+      - name: "Solar Day Peak Power (kW)"
+        unique_id: solar_day_peak_power_kw
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: "kW"
+        state: >
+          {{ (states('sensor.ks1_day_power_peak_kw')|float(0))
+           + (states('sensor.ks2_day_power_peak_kw')|float(0)) }}
+
+      - name: "Grid Daily Export (kWh)"
+        unique_id: grid_daily_export_kwh
+        device_class: energy
+        state_class: total
+        unit_of_measurement: "kWh"
+        availability: >
+          {{ has_value('sensor.ks1_daily_grid_sales_kwh') and has_value('sensor.ks2_daily_grid_sales_kwh') }}
+        state: >
+          {% set a = states('sensor.ks1_daily_grid_sales_kwh') %}
+          {% set b = states('sensor.ks2_daily_grid_sales_kwh') %}
+          {% if is_number(a) and is_number(b) %}
+            {{ a|float + b|float }}
+          {% else %}
+            {{ none }}
+          {% endif %}
+
+      - name: "Grid Total Export (kWh)"
+        unique_id: grid_total_export_kwh
+        device_class: energy
+        state_class: total_increasing
+        unit_of_measurement: "kWh"
+        state: >
+          {{ (states('sensor.ks1_total_grid_sales_kwh')|float(0))
+           + (states('sensor.ks2_total_grid_sales_kwh')|float(0)) }}
+
+      # --- Export ratio (percent of production exported today) ---
+      - name: "Export Ratio (%)"
+        unique_id: export_ratio_pct
+        state_class: measurement
+        unit_of_measurement: "%"
+        state: >
+          {% set prod = states('sensor.solar_daily_production_kwh')|float(0) %}
+          {% set exp  = states('sensor.grid_daily_export_kwh')|float(0) %}
+          {{ 0 if prod == 0 else (100.0 * exp / prod) | round(1) }}
+
+utility_meter:
+  # --- Production (KS1) ---
+  ks1_prod_daily:
+    name: "KS1 Production – Daily"
+    unique_id: ks1_production_daily_kwh
+    source: sensor.ks1_daily_energy_yield_kwh
+    cycle: daily
+  ks1_prod_weekly:
+    name: "KS1 Production – Weekly"
+    unique_id: ks1_production_weekly_kwh
+    source: sensor.ks1_daily_energy_yield_kwh
+    cycle: weekly
+  ks1_prod_monthly:
+    name: "KS1 Production – Monthly"
+    unique_id: ks1_production_monthly_kwh
+    source: sensor.ks1_daily_energy_yield_kwh
+    cycle: monthly
+  ks1_prod_yearly:
+    name: "KS1 Production – Yearly"
+    unique_id: ks1_production_yearly_kwh
+    source: sensor.ks1_daily_energy_yield_kwh
+    cycle: yearly
+
+  # --- Production (KS2) ---
+  ks2_prod_daily:
+    name: "KS2 Production – Daily"
+    unique_id: ks2_production_daily_kwh
+    source: sensor.ks2_daily_energy_yield_kwh
+    cycle: daily
+  ks2_prod_weekly:
+    name: "KS2 Production – Weekly"
+    unique_id: ks2_production_weekly_kwh
+    source: sensor.ks2_daily_energy_yield_kwh
+    cycle: weekly
+  ks2_prod_monthly:
+    name: "KS2 Production – Monthly"
+    unique_id: ks2_production_monthly_kwh
+    source: sensor.ks2_daily_energy_yield_kwh
+    cycle: monthly
+  ks2_prod_yearly:
+    name: "KS2 Production – Yearly"
+    unique_id: ks2_production_yearly_kwh
+    source: sensor.ks2_daily_energy_yield_kwh
+    cycle: yearly
+
+  # --- Production (Combined system) ---
+  solar_prod_daily:
+    name: "Solar Production – Daily"
+    unique_id: solar_production_daily_kwh
+    source: sensor.solar_daily_production_kwh
+    cycle: daily
+  solar_prod_weekly:
+    name: "Solar Production – Weekly"
+    source: sensor.solar_daily_production_kwh
+    unique_id: solar_production_weekly_kwh
+    cycle: weekly
+  solar_prod_monthly:
+    name: "Solar Production – Monthly"
+    unique_id: solar_production_monthly_kwh
+    source: sensor.solar_daily_production_kwh
+    cycle: monthly
+  solar_prod_yearly:
+    name: "Solar Production – Yearly"
+    unique_id: solar_production_yearly_kwh
+    source: sensor.solar_daily_production_kwh
+    cycle: yearly
+
+  # --- Grid export (KS1) ---
+  ks1_export_daily:
+    name: "KS1 Grid Export – Daily"
+    unique_id: ks1_grid_export_daily_kwh
+    source: sensor.ks1_daily_grid_sales_kwh
+    cycle: daily
+  ks1_export_weekly:
+    name: "KS1 Grid Export – Weekly"
+    source: sensor.ks1_daily_grid_sales_kwh
+    unique_id: ks1_grid_export_weekly_kwh
+    cycle: weekly
+  ks1_export_monthly:
+    name: "KS1 Grid Export – Monthly"
+    unique_id: ks1_grid_export_monthly_kwh
+    source: sensor.ks1_daily_grid_sales_kwh
+    cycle: monthly
+  ks1_export_yearly:
+    name: "KS1 Grid Export – Yearly"
+    unique_id: ks1_grid_export_yearly_kwh
+    source: sensor.ks1_daily_grid_sales_kwh
+    cycle: yearly
+
+  # --- Grid export (KS2) ---
+  ks2_export_daily:
+    name: "KS2 Grid Export – Daily"
+    unique_id: ks2_grid_export_daily_kwh
+    source: sensor.ks2_daily_grid_sales_kwh
+    cycle: daily
+  ks2_export_weekly:
+    name: "KS2 Grid Export – Weekly"
+    unique_id: ks2_grid_export_weekly_kwh
+    source: sensor.ks2_daily_grid_sales_kwh
+    cycle: weekly
+  ks2_export_monthly:
+    name: "KS2 Grid Export – Monthly"
+    unique_id: ks2_grid_export_monthly_kwh
+    source: sensor.ks2_daily_grid_sales_kwh
+    cycle: monthly
+  ks2_export_yearly:
+    name: "KS2 Grid Export – Yearly"
+    unique_id: ks2_grid_export_yearly_kwh
+    source: sensor.ks2_daily_grid_sales_kwh
+    cycle: yearly
+
+  # --- Grid export (Combined system) ---
+  grid_export_daily:
+    name: "Grid Export – Daily"
+    unique_id: grid_export_daily_kwh
+    source: sensor.grid_daily_export_kwh
+    cycle: daily
+  grid_export_weekly:
+    name: "Grid Export – Weekly"
+    unique_id: grid_export_weekly_kwh
+    source: sensor.grid_daily_export_kwh
+    cycle: weekly
+  grid_export_monthly:
+    name: "Grid Export – Monthly"
+    unique_id: grid_export_monthly_kwh
+    source: sensor.grid_daily_export_kwh
+    cycle: monthly
+  grid_export_yearly:
+    name: "Grid Export – Yearly"
+    unique_id: grid_export_yearly_kwh
+    source: sensor.grid_daily_export_kwh
+    cycle: yearly
+
+
+sensor:
+  - platform: statistics
+    name: "Solar Daily Production – 7d mean"
+    entity_id: utility_meter.solar_prod_daily     # was sensor.solar_prod_daily
+    state_characteristic: mean
+    sampling_size: 24
+    max_age: { days: 7 }
+
+  - platform: statistics
+    name: "Grid Daily Export – 7d mean"
+    entity_id: utility_meter.grid_export_daily    # was sensor.grid_export_daily
+    state_characteristic: mean
+    sampling_size: 24
+    max_age: { days: 7 }
+    
+homeassistant:
+  external_url: "https://homeassistant.duretio.org"
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 172.30.33.0/24
+    - 172.30.33.2
+    - 173.245.48.0/20
+    - 103.21.244.0/22
+    - 103.22.200.0/22
+    - 103.31.4.0/22
+    - 141.101.64.0/18
+    - 108.162.192.0/18
+    - 190.93.240.0/20
+    - 188.114.96.0/20
+    - 197.234.240.0/22
+    - 198.41.128.0/17
+    - 162.158.0.0/15
+    - 104.16.0.0/12
+    - 172.64.0.0/13
+    - 131.0.72.0/22
+      

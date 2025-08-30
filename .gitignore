@@ -1,0 +1,20 @@
+.storage/
+.cloud/
+home-assistant_v2.db
+home-assistant.log
+home-assistant.log.*
+*.db-shm
+*.db-wal
+*.log
+secrets.yaml
+tts/
+deps/
+.__pycache__/
+*.pyc
+*.pyo
+*.pyd
+# backups
+backup/
+# Recorder/History if stored locally
+*.sqlite
+*.key

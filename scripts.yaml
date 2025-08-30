@@ -1,0 +1,9 @@
+purge_all_statistics:
+  alias: Purge All Statistics
+  sequence:
+  - data:
+      keep_days: 0
+      repack: true
+    action: recorder.purge
+  mode: single
+  description: ''
